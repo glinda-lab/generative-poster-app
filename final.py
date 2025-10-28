@@ -117,7 +117,7 @@ def generate_poster(shape_type="circle", color_mode="pastel", n_layers=12, seed=
     return fig
 
 # ----- Streamlit UI -----
-st.title("🌀 3D-Like Geometric Poster Generator")
+st.title("🌀 Final generative abstract poster")
 st.write("Create posters with 3D-like geometric depth illusion using colors and shadows.")
 
 shape_type = st.sidebar.selectbox("Shape", ["circle", "square", "star"])
