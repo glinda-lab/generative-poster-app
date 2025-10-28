@@ -7,7 +7,7 @@ import pandas as pd
 import io
 from matplotlib.colors import hsv_to_rgb
 
-# ----- 기본 컬러 팔레트 -----
+# ----- basic color palette -----
 palette_df = pd.DataFrame([
     {"name": "ocean",  "r": 0.1, "g": 0.3, "b": 0.8},
     {"name": "sand",   "r": 0.9, "g": 0.8, "b": 0.5},
@@ -16,7 +16,7 @@ palette_df = pd.DataFrame([
     {"name": "cloud",  "r": 0.9, "g": 0.9, "b": 0.95},
 ])
 
-# ----- 팔레트 생성 함수 -----
+# ----- generate palette -----
 def make_palette(mode="pastel", k=6):
     """Return a list of RGB tuples."""
     cols = []
@@ -45,7 +45,7 @@ def make_palette(mode="pastel", k=6):
         cols.append(tuple(hsv_to_rgb([h, s, v])))
     return cols
 
-# ----- 도형 함수들 -----
+# ----- shape function -----
 def shape_circle(center=(0.5, 0.5), r=0.2, points=200):
     angles = np.linspace(0, 2 * math.pi, points)
     x = center[0] + r * np.cos(angles)
@@ -68,7 +68,7 @@ def shape_star(center=(0.5, 0.5), r1=0.3, r2=0.15, num_points=5):
     y = center[1] + radii * np.sin(angles)
     return x, y
 
-# ----- 3D 착시형 도형 그리기 -----
+# ----- 3Dlike -----
 def draw_shape_3d(ax, shape_type, palette, n_layers=12):
     for i in range(n_layers):
         depth = i / (n_layers - 1 + 1e-6)
@@ -85,19 +85,19 @@ def draw_shape_3d(ax, shape_type, palette, n_layers=12):
         else:
             continue
 
-        # 그림자 (깊이에 따라 작게)
+        # shadow
         shadow_offset_x = random.uniform(0.01, 0.03) * (1 - depth)
         shadow_offset_y = random.uniform(-0.03, -0.01) * (1 - depth)
         shadow_alpha = random.uniform(0.1, 0.25) * (1 - depth)
         ax.fill(x + shadow_offset_x, y + shadow_offset_y, color=(0, 0, 0),
                 alpha=shadow_alpha, zorder=i)
 
-        # 색상 + 투명도
+        # color transparency
         color = random.choice(palette)
         alpha = random.uniform(0.35, 0.7) * (1 - depth) + 0.2
         ax.fill(x, y, color=color, alpha=alpha, zorder=i+1)  # 윤곽선 제거됨
 
-# ----- 포스터 생성 -----
+# ----- generate poster -----
 def generate_poster(shape_type="circle", color_mode="pastel", n_layers=12, seed=0):
     random.seed(seed)
     np.random.seed(seed)
