@@ -6,7 +6,7 @@ from matplotlib.colors import hsv_to_rgb
 import pandas as pd
 import streamlit as st
 
-# --- 고정 팔레트 데이터 ---
+# --- palette data ---
 palette_df = pd.DataFrame([
     {"name": "ocean",  "r": 0.1, "g": 0.3, "b": 0.8},
     {"name": "sand",   "r": 0.9, "g": 0.8, "b": 0.5},
@@ -23,10 +23,10 @@ def blob(center=(0.5, 0.5), r=0.3, points=200, wobble=0.15):
     y = center[1] + radii * np.sin(angles)
     return x, y
 
-# --- 팔레트 생성 ---
+# --- generate palette ---
 def make_palette(k=6, mode="pastel", base_h=0.60, fixed_color=None):
     cols = []
-    if fixed_color:  # 고정 색상 선택 시
+    if fixed_color:  
         return [fixed_color] * k
 
     for _ in range(k):
@@ -41,7 +41,7 @@ def make_palette(k=6, mode="pastel", base_h=0.60, fixed_color=None):
         cols.append(tuple(hsv_to_rgb([h,s,v])))
     return cols
 
-# --- 포스터 그리기 ---
+# --- generate poster ---
 def draw_poster(n_layers=8, wobble=0.15, palette_mode="pastel", seed=0, fixed_color=None):
     random.seed(seed)
     np.random.seed(seed)
@@ -68,25 +68,25 @@ def draw_poster(n_layers=8, wobble=0.15, palette_mode="pastel", seed=0, fixed_co
 st.title("🎨 Interactive Generative Poster")
 st.write("Choose colors and play with randomness to generate your own poster.")
 
-# 사이드바 옵션
+# sidebar
 n_layers = st.sidebar.slider("Layers", 3, 20, 8)
 wobble = st.sidebar.slider("Wobble", 0.01, 1.0, 0.15)
 palette_mode = st.sidebar.selectbox("Palette Mode", ["pastel", "vivid", "mono", "random", "custom"])
 seed = st.sidebar.number_input("Seed", 0, 9999, 0)
 
-# custom 모드일 때만 색상 선택
+# choose color in custom mode
 fixed_color = None
 if palette_mode == "custom":
     color_name = st.sidebar.selectbox("Choose a base color", palette_df["name"].tolist())
     row = palette_df[palette_df["name"] == color_name].iloc[0]
     fixed_color = (row.r, row.g, row.b)
 
-# 포스터 생성 버튼
+# button
 if st.button("Generate Poster"):
     fig = draw_poster(n_layers, wobble, palette_mode, seed, fixed_color)
     st.pyplot(fig)
 
-    # 다운로드 버튼
+    # download
     import io
     buf = io.BytesIO()
     fig.savefig(buf, format="png", bbox_inches="tight", dpi=300)
