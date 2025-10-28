@@ -1,10 +1,19 @@
 # poster_app.py
-import random, math, os
+import random, math
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import hsv_to_rgb
 import pandas as pd
 import streamlit as st
+
+# --- palette data ---
+palette_df = pd.DataFrame([
+    {"name": "ocean",  "r": 0.1, "g": 0.3, "b": 0.8},
+    {"name": "sand",   "r": 0.9, "g": 0.8, "b": 0.5},
+    {"name": "sunset", "r": 0.9, "g": 0.4, "b": 0.3},
+    {"name": "forest", "r": 0.2, "g": 0.6, "b": 0.3},
+    {"name": "cloud",  "r": 0.9, "g": 0.9, "b": 0.95},
+])
 
 # --- Blob shape ---
 def blob(center=(0.5, 0.5), r=0.3, points=200, wobble=0.15):
@@ -14,24 +23,12 @@ def blob(center=(0.5, 0.5), r=0.3, points=200, wobble=0.15):
     y = center[1] + radii * np.sin(angles)
     return x, y
 
-# --- CSV palette loader ---
-def read_palette(filename="colors20_palette.csv"):
-    if not os.path.exists(filename):
-        st.warning("⚠️ No CSV palette found. Using random colors instead.")
-        return pd.DataFrame({"r": [], "g": [], "b": []})
-    return pd.read_csv(filename)
-
-def load_csv_palette(filename="colors20_palette.csv"):
-    df = read_palette(filename)
-    if df.empty:
-        return [(random.random(), random.random(), random.random()) for _ in range(6)]
-    return [(row.r, row.g, row.b) for row in df.itertuples()]
-
-# --- Palette generator ---
-def make_palette(k=6, mode="pastel", base_h=0.60):
+# --- generate palette ---
+def make_palette(k=6, mode="pastel", base_h=0.60, fixed_color=None):
     cols = []
-    if mode == "csv":
-        return load_csv_palette()
+    if fixed_color:  
+        return [fixed_color] * k
+
     for _ in range(k):
         if mode == "pastel":
             h = random.random(); s = random.uniform(0.15,0.35); v = random.uniform(0.9,1.0)
@@ -44,8 +41,8 @@ def make_palette(k=6, mode="pastel", base_h=0.60):
         cols.append(tuple(hsv_to_rgb([h,s,v])))
     return cols
 
-# --- Draw poster ---
-def draw_poster(n_layers=8, wobble=0.15, palette_mode="pastel", seed=0):
+# --- drawing poster ---
+def draw_poster(n_layers=8, wobble=0.15, palette_mode="pastel", seed=0, fixed_color=None):
     random.seed(seed)
     np.random.seed(seed)
 
@@ -53,7 +50,8 @@ def draw_poster(n_layers=8, wobble=0.15, palette_mode="pastel", seed=0):
     ax.axis("off")
     ax.set_facecolor((0.97, 0.97, 0.97))
 
-    palette = make_palette(6, mode=palette_mode)
+    palette = make_palette(6, mode=palette_mode, fixed_color=fixed_color)
+
     for _ in range(n_layers):
         cx, cy = random.random(), random.random()
         rr = random.uniform(0.15, 0.45)
@@ -68,20 +66,27 @@ def draw_poster(n_layers=8, wobble=0.15, palette_mode="pastel", seed=0):
 
 # --- Streamlit UI ---
 st.title("🎨 Interactive Generative Poster")
-st.write("Explore color palettes, randomness, and shape layering.")
+st.write("Choose colors and play with randomness to generate your own poster.")
 
-# Sidebar controls
+# sidebar
 n_layers = st.sidebar.slider("Layers", 3, 20, 8)
 wobble = st.sidebar.slider("Wobble", 0.01, 1.0, 0.15)
-palette_mode = st.sidebar.selectbox("Palette Mode", ["pastel", "vivid", "mono", "random", "csv"])
+palette_mode = st.sidebar.selectbox("Palette Mode", ["pastel", "vivid", "mono", "random", "custom"])
 seed = st.sidebar.number_input("Seed", 0, 9999, 0)
 
-# Generate poster
+# choose color when custom mode
+fixed_color = None
+if palette_mode == "custom":
+    color_name = st.sidebar.selectbox("Choose a base color", palette_df["name"].tolist())
+    row = palette_df[palette_df["name"] == color_name].iloc[0]
+    fixed_color = (row.r, row.g, row.b)
+
+# button
 if st.button("Generate Poster"):
-    fig = draw_poster(n_layers=n_layers, wobble=wobble, palette_mode=palette_mode, seed=seed)
+    fig = draw_poster(n_layers, wobble, palette_mode, seed, fixed_color)
     st.pyplot(fig)
 
-    # Download button
+    # download
     import io
     buf = io.BytesIO()
     fig.savefig(buf, format="png", bbox_inches="tight", dpi=300)
