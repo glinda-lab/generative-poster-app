@@ -56,7 +56,7 @@ def natural_3d_poster(n_layers=12, seed=None):
 
 
 # ---- Streamlit UI ----
-st.title("🌀 Natural 3D Generative Poster")
+st.title("🌀 3D Generative Poster")
 st.write("Create abstract, layered 3D-like posters with random colors and depth effects.")
 
 # Sidebar controls
@@ -67,7 +67,7 @@ generate_btn = st.sidebar.button("🎨 Generate Poster")
 # Generate poster
 if generate_btn:
     seed = int(seed_input) if seed_input.strip().isdigit() else None
-    fig = 3d_poster(n_layers=n_layers, seed=seed)
+    fig = natural_3d_poster(n_layers=n_layers, seed=seed)
 
     # Show image
     st.pyplot(fig)
