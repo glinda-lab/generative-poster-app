@@ -67,7 +67,7 @@ generate_btn = st.sidebar.button("🎨 Generate Poster")
 # Generate poster
 if generate_btn:
     seed = int(seed_input) if seed_input.strip().isdigit() else None
-    fig = natural_3d_poster(n_layers=n_layers, seed=seed)
+    fig = 3d_poster(n_layers=n_layers, seed=seed)
 
     # Show image
     st.pyplot(fig)
