@@ -7,7 +7,7 @@ import pandas as pd
 import io
 from matplotlib.colors import hsv_to_rgb
 
-# ----- 고정 팔레트 -----
+# ----- 기본 컬러 팔레트 -----
 palette_df = pd.DataFrame([
     {"name": "ocean",  "r": 0.1, "g": 0.3, "b": 0.8},
     {"name": "sand",   "r": 0.9, "g": 0.8, "b": 0.5},
@@ -16,17 +16,15 @@ palette_df = pd.DataFrame([
     {"name": "cloud",  "r": 0.9, "g": 0.9, "b": 0.95},
 ])
 
-# ----- 색상 팔레트 함수 -----
+# ----- 팔레트 생성 함수 -----
 def make_palette(mode="pastel", k=6):
     """Return a list of RGB tuples."""
     cols = []
 
     if mode in palette_df["name"].tolist():
-        # 단일 고정 컬러 모드
         row = palette_df[palette_df["name"] == mode].iloc[0]
         return [(row.r, row.g, row.b)]
-    
-    # 랜덤 팔레트 모드
+
     for _ in range(k):
         if mode == "pastel":
             h = random.random()
@@ -70,37 +68,37 @@ def shape_star(center=(0.5, 0.5), r1=0.3, r2=0.15, num_points=5):
     y = center[1] + radii * np.sin(angles)
     return x, y
 
-def shape_heart(center=(0.5, 0.5), size=0.25, points=200):
-    t = np.linspace(0, math.pi, points)
-    x = size * 16 * np.sin(t)**3
-    y = size * (13*np.cos(t) - 5*np.cos(2*t) - 2*np.cos(3*t) - np.cos(4*t))
-    x = center[0] + x / 40
-    y = center[1] + y / 40
-    return x, y
-
-# ----- 도형 그리기 -----
-def draw_shape(ax, shape_type, palette, n_shapes=8):
-    for _ in range(n_shapes):
+# ----- 3D 착시형 도형 그리기 -----
+def draw_shape_3d(ax, shape_type, palette, n_layers=12):
+    for i in range(n_layers):
+        depth = i / (n_layers - 1 + 1e-6)
         cx, cy = random.random(), random.random()
-        size = random.uniform(0.15, 0.4)
+        size = random.uniform(0.1, 0.35)
 
+        # 도형 선택
         if shape_type == "circle":
             x, y = shape_circle((cx, cy), r=size)
         elif shape_type == "square":
             x, y = shape_square((cx, cy), size=size)
         elif shape_type == "star":
             x, y = shape_star((cx, cy), r1=size, r2=size*0.5)
-        elif shape_type == "heart":
-            x, y = shape_heart((cx, cy), size=size)
         else:
-            return
+            continue
 
+        # 그림자 (깊이에 따라 작게)
+        shadow_offset_x = random.uniform(0.01, 0.03) * (1 - depth)
+        shadow_offset_y = random.uniform(-0.03, -0.01) * (1 - depth)
+        shadow_alpha = random.uniform(0.1, 0.25) * (1 - depth)
+        ax.fill(x + shadow_offset_x, y + shadow_offset_y, color=(0, 0, 0),
+                alpha=shadow_alpha, zorder=i)
+
+        # 색상 + 투명도
         color = random.choice(palette)
-        alpha = random.uniform(0.4, 0.7)
-        ax.fill(x, y, color=color, alpha=alpha, edgecolor=(0, 0, 0, 0))
+        alpha = random.uniform(0.35, 0.7) * (1 - depth) + 0.2
+        ax.fill(x, y, color=color, alpha=alpha, zorder=i+1)  # 윤곽선 제거됨
 
 # ----- 포스터 생성 -----
-def generate_poster(shape_type="circle", color_mode="pastel", n_shapes=8, seed=0):
+def generate_poster(shape_type="circle", color_mode="pastel", n_layers=12, seed=0):
     random.seed(seed)
     np.random.seed(seed)
 
@@ -108,10 +106,10 @@ def generate_poster(shape_type="circle", color_mode="pastel", n_shapes=8, seed=0
 
     fig, ax = plt.subplots(figsize=(6, 8))
     ax.axis("off")
-    ax.set_facecolor((0.97, 0.97, 0.97))
+    ax.set_facecolor((0.93, 0.94, 0.97))
 
-    draw_shape(ax, shape_type, palette, n_shapes)
-    ax.text(0.05, 0.95, f"{shape_type.capitalize()} Poster • {color_mode}",
+    draw_shape_3d(ax, shape_type, palette, n_layers)
+    ax.text(0.05, 0.95, f"3D-like {shape_type.capitalize()} • {color_mode}",
             transform=ax.transAxes, fontsize=12, weight="bold")
 
     ax.set_xlim(0, 1)
@@ -119,19 +117,19 @@ def generate_poster(shape_type="circle", color_mode="pastel", n_shapes=8, seed=0
     return fig
 
 # ----- Streamlit UI -----
-st.title("🌀 Simple Shape Poster Generator")
-st.write("Choose shape + color style to generate clean geometric posters.")
+st.title("🌀 3D-Like Geometric Poster Generator")
+st.write("Create posters with 3D-like geometric depth illusion using colors and shadows.")
 
-shape_type = st.sidebar.selectbox("Shape", ["circle", "square", "star", "heart"])
+shape_type = st.sidebar.selectbox("Shape", ["circle", "square", "star"])
 color_mode = st.sidebar.selectbox("Color Mode", 
     ["ocean", "sand", "sunset", "forest", "cloud", "pastel", "vivid", "mono"])
-n_shapes = st.sidebar.slider("Number of Shapes", 3, 20, 8)
+n_layers = st.sidebar.slider("Number of Layers (Depth)", 3, 20, 12)
 seed = st.sidebar.number_input("Seed", 0, 9999, 0)
 
 if st.button("🎨 Generate Poster"):
-    fig = generate_poster(shape_type, color_mode, n_shapes, seed)
+    fig = generate_poster(shape_type, color_mode, n_layers, seed)
     st.pyplot(fig)
 
     buf = io.BytesIO()
     fig.savefig(buf, format="png", bbox_inches="tight", dpi=300)
-    st.download_button("💾 Download Poster", buf.getvalue(), "poster.png", "image/png")
+    st.download_button("💾 Download Poster", buf.getvalue(), "poster_3d.png", "image/png")
