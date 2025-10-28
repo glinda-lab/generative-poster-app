@@ -1,13 +1,12 @@
-import streamlit as st
-import matplotlib.pyplot as plt
+# poster_app.py
+import random, math
 import numpy as np
-import random
-import math
-import pandas as pd
-import io
+import matplotlib.pyplot as plt
 from matplotlib.colors import hsv_to_rgb
+import pandas as pd
+import streamlit as st
 
-# ----- 기본 컬러 팔레트 -----
+# --- 고정 팔레트 데이터 ---
 palette_df = pd.DataFrame([
     {"name": "ocean",  "r": 0.1, "g": 0.3, "b": 0.8},
     {"name": "sand",   "r": 0.9, "g": 0.8, "b": 0.5},
@@ -16,120 +15,79 @@ palette_df = pd.DataFrame([
     {"name": "cloud",  "r": 0.9, "g": 0.9, "b": 0.95},
 ])
 
-# ----- 팔레트 생성 함수 -----
-def make_palette(mode="pastel", k=6):
-    """Return a list of RGB tuples."""
-    cols = []
-
-    if mode in palette_df["name"].tolist():
-        row = palette_df[palette_df["name"] == mode].iloc[0]
-        return [(row.r, row.g, row.b)]
-
-    for _ in range(k):
-        if mode == "pastel":
-            h = random.random()
-            s = random.uniform(0.2, 0.4)
-            v = random.uniform(0.9, 1.0)
-        elif mode == "vivid":
-            h = random.random()
-            s = random.uniform(0.8, 1.0)
-            v = random.uniform(0.8, 1.0)
-        elif mode == "mono":
-            v = random.uniform(0.3, 0.9)
-            s = 0
-            h = 0
-        else:
-            h = random.random()
-            s = random.uniform(0.3, 1.0)
-            v = random.uniform(0.5, 1.0)
-        cols.append(tuple(hsv_to_rgb([h, s, v])))
-    return cols
-
-# ----- 도형 함수들 -----
-def shape_circle(center=(0.5, 0.5), r=0.2, points=200):
-    angles = np.linspace(0, 2 * math.pi, points)
-    x = center[0] + r * np.cos(angles)
-    y = center[1] + r * np.sin(angles)
-    return x, y
-
-def shape_square(center=(0.5, 0.5), size=0.3):
-    x0, y0 = center
-    half = size / 2
-    x = [x0 - half, x0 + half, x0 + half, x0 - half, x0 - half]
-    y = [y0 - half, y0 - half, y0 + half, y0 + half, y0 - half]
-    return np.array(x), np.array(y)
-
-def shape_star(center=(0.5, 0.5), r1=0.3, r2=0.15, num_points=5):
-    angles = np.linspace(0, 2 * math.pi, num_points * 2 + 1)
-    radii = np.empty_like(angles)
-    radii[::2] = r1
-    radii[1::2] = r2
+# --- Blob shape ---
+def blob(center=(0.5, 0.5), r=0.3, points=200, wobble=0.15):
+    angles = np.linspace(0, 2 * math.pi, points, endpoint=False)
+    radii = r * (1 + wobble * (np.random.rand(points) - 0.5))
     x = center[0] + radii * np.cos(angles)
     y = center[1] + radii * np.sin(angles)
     return x, y
 
-# ----- 3D 착시형 도형 그리기 -----
-def draw_shape_3d(ax, shape_type, palette, n_layers=12):
-    for i in range(n_layers):
-        depth = i / (n_layers - 1 + 1e-6)
-        cx, cy = random.random(), random.random()
-        size = random.uniform(0.1, 0.35)
+# --- 팔레트 생성 ---
+def make_palette(k=6, mode="pastel", base_h=0.60, fixed_color=None):
+    cols = []
+    if fixed_color:  # 고정 색상 선택 시
+        return [fixed_color] * k
 
-        # 도형 선택
-        if shape_type == "circle":
-            x, y = shape_circle((cx, cy), r=size)
-        elif shape_type == "square":
-            x, y = shape_square((cx, cy), size=size)
-        elif shape_type == "star":
-            x, y = shape_star((cx, cy), r1=size, r2=size*0.5)
+    for _ in range(k):
+        if mode == "pastel":
+            h = random.random(); s = random.uniform(0.15,0.35); v = random.uniform(0.9,1.0)
+        elif mode == "vivid":
+            h = random.random(); s = random.uniform(0.8,1.0); v = random.uniform(0.8,1.0)
+        elif mode == "mono":
+            h = base_h; s = random.uniform(0.2,0.6); v = random.uniform(0.5,1.0)
         else:
-            continue
+            h = random.random(); s = random.uniform(0.3,1.0); v = random.uniform(0.5,1.0)
+        cols.append(tuple(hsv_to_rgb([h,s,v])))
+    return cols
 
-        # 그림자 (깊이에 따라 작게)
-        shadow_offset_x = random.uniform(0.01, 0.03) * (1 - depth)
-        shadow_offset_y = random.uniform(-0.03, -0.01) * (1 - depth)
-        shadow_alpha = random.uniform(0.1, 0.25) * (1 - depth)
-        ax.fill(x + shadow_offset_x, y + shadow_offset_y, color=(0, 0, 0),
-                alpha=shadow_alpha, zorder=i)
-
-        # 색상 + 투명도
-        color = random.choice(palette)
-        alpha = random.uniform(0.35, 0.7) * (1 - depth) + 0.2
-        ax.fill(x, y, color=color, alpha=alpha, zorder=i+1)  # 윤곽선 제거됨
-
-# ----- 포스터 생성 -----
-def generate_poster(shape_type="circle", color_mode="pastel", n_layers=12, seed=0):
+# --- 포스터 그리기 ---
+def draw_poster(n_layers=8, wobble=0.15, palette_mode="pastel", seed=0, fixed_color=None):
     random.seed(seed)
     np.random.seed(seed)
 
-    palette = make_palette(color_mode, k=6)
-
     fig, ax = plt.subplots(figsize=(6, 8))
     ax.axis("off")
-    ax.set_facecolor((0.93, 0.94, 0.97))
+    ax.set_facecolor((0.97, 0.97, 0.97))
 
-    draw_shape_3d(ax, shape_type, palette, n_layers)
-    ax.text(0.05, 0.95, f"3D-like {shape_type.capitalize()} • {color_mode}",
+    palette = make_palette(6, mode=palette_mode, fixed_color=fixed_color)
+
+    for _ in range(n_layers):
+        cx, cy = random.random(), random.random()
+        rr = random.uniform(0.15, 0.45)
+        x, y = blob((cx, cy), r=rr, wobble=wobble)
+        color = random.choice(palette)
+        alpha = random.uniform(0.3, 0.6)
+        ax.fill(x, y, color=color, alpha=alpha, edgecolor=(0, 0, 0, 0))
+
+    ax.text(0.05, 0.95, f"Interactive Poster • {palette_mode}",
             transform=ax.transAxes, fontsize=12, weight="bold")
-
-    ax.set_xlim(0, 1)
-    ax.set_ylim(0, 1)
     return fig
 
-# ----- Streamlit UI -----
-st.title("🌀 Final generative abstract Poster")
-st.write("Create posters with 3D-like geometric depth illusion using colors and shadows.")
+# --- Streamlit UI ---
+st.title("🎨 Interactive Generative Poster")
+st.write("Choose colors and play with randomness to generate your own poster.")
 
-shape_type = st.sidebar.selectbox("Shape", ["circle", "square", "star"])
-color_mode = st.sidebar.selectbox("Color Mode", 
-    ["ocean", "sand", "sunset", "forest", "cloud", "pastel", "vivid", "mono"])
-n_layers = st.sidebar.slider("Number of Layers (Depth)", 3, 20, 12)
+# 사이드바 옵션
+n_layers = st.sidebar.slider("Layers", 3, 20, 8)
+wobble = st.sidebar.slider("Wobble", 0.01, 1.0, 0.15)
+palette_mode = st.sidebar.selectbox("Palette Mode", ["pastel", "vivid", "mono", "random", "custom"])
 seed = st.sidebar.number_input("Seed", 0, 9999, 0)
 
-if st.button("🎨 Generate Poster"):
-    fig = generate_poster(shape_type, color_mode, n_layers, seed)
+# custom 모드일 때만 색상 선택
+fixed_color = None
+if palette_mode == "custom":
+    color_name = st.sidebar.selectbox("Choose a base color", palette_df["name"].tolist())
+    row = palette_df[palette_df["name"] == color_name].iloc[0]
+    fixed_color = (row.r, row.g, row.b)
+
+# 포스터 생성 버튼
+if st.button("Generate Poster"):
+    fig = draw_poster(n_layers, wobble, palette_mode, seed, fixed_color)
     st.pyplot(fig)
 
+    # 다운로드 버튼
+    import io
     buf = io.BytesIO()
     fig.savefig(buf, format="png", bbox_inches="tight", dpi=300)
-    st.download_button("💾 Download Poster", buf.getvalue(), "poster_3d.png", "image/png")
+    st.download_button("💾 Download Poster", buf.getvalue(), "poster.png", "image/png")
